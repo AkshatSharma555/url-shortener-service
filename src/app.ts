@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+import cors from '@fastify/cors';
 import { urlRoutes } from './modules/urls/url.routes';
 import { redirectUrlHandler } from './modules/urls/url.controller';
 import { redis } from './core/redis';
@@ -11,15 +12,24 @@ export function buildApp() {
   const app = Fastify({
     logger: {
       level: 'info',
-      // Production me log format ko clean aur JSON-structured rakhne ke liye
       transport: process.env.NODE_ENV === 'development' ? {
         target: 'pino-pretty',
         options: { translateTime: 'HH:mm:ss Z', ignore: 'pid,hostname' }
       } : undefined
     },
-    // Har incoming request ko ek unique ID assign karega tracing ke liye
     genReqId: () => crypto.randomUUID()
   });
+
+  // 0. Enable CORS for browser & Swagger UI requests
+  app.register(cors, {
+    origin: true, // Sabhi origins allow hain (production ke liye aap specific domain bhi de sakte ho)
+  });
+
+  // Determine Server URL dynamically for Swagger
+  const isProduction = process.env.NODE_ENV === 'production';
+  const serverUrl = isProduction 
+    ? 'https://url-shortener-service-ur3h.onrender.com' 
+    : 'http://localhost:3000';
 
   // 1. Swagger Documentation Setup
   app.register(swagger, {
@@ -30,7 +40,10 @@ export function buildApp() {
         version: '1.0.0'
       },
       servers: [
-        { url: 'http://localhost:3000', description: 'Local Development Server' }
+        { 
+          url: serverUrl, 
+          description: isProduction ? 'Production Render Server' : 'Local Development Server' 
+        }
       ],
       components: {
         securitySchemes: {
