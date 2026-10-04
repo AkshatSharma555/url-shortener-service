@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// URL Model: Define karta hai ki database table kaisi dikhegi
+model Url {
+  id          String    @id @default(cuid())
+  shortCode   String    @unique
+  originalUrl String
+  clickCount  Int       @default(0)
+  expiresAt   DateTime? // Optional: Agar URL ko expire karna ho
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Indexing query ko bohot fast banata hai jab hum shortCode se search karenge
+  @@index([shortCode])
+}
