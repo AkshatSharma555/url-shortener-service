@@ -10,8 +10,22 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    # Redis Service container add kiya hai taaki tests timeout na hon
+    # Postgres aur Redis dono services CI runner par start hongi
     services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
       redis:
         image: redis:alpine
         ports:
@@ -39,13 +53,16 @@ jobs:
     - name: Install Dependencies
       run: npm ci
 
+    - name: Run Prisma Database Push (Setup Test DB)
+      run: npx prisma db push
+      env:
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/testdb?schema=public'
+
     - name: Run Integration Tests
       run: npm run test
       env:
         API_KEY: 'test_secret_key_123'
-        # Local mock database url (Agar migrations run karni hon toh SQLite ya mock use hota hai, abhi ke liye test bypass ke liye)
-        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/testdb'
-        # Local Redis service jo upar container me chal rahi hai
+        DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/testdb?schema=public'
         REDIS_URL: 'redis://localhost:6379'
 
     - name: Build Project
